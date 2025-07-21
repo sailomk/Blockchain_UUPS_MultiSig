@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT
 // MultiSigWallet.sol
+// V2 allow to add/remove list of owner   July 19,2025
+
 pragma solidity ^0.8.20;
 
 contract MultiSigWallet {
@@ -8,6 +10,11 @@ contract MultiSigWallet {
     event Approve(address indexed owner, uint indexed txId);
     event Execute(uint indexed txId);
     event Revoke(address indexed owner, uint indexed txId);
+   
+    // support feature Allow_To_Add_Owners
+    event OwnerAdded(address indexed owner);
+    event OwnerRemoved(address indexed owner);
+    event RequirementChanged(uint required);
 
     struct Transaction {
         address to;
@@ -119,4 +126,52 @@ contract MultiSigWallet {
         approved[_txId][msg.sender] = false;
         emit Revoke(msg.sender, _txId);
     }
+
+
+
+
+    // Feature Allow_To_Change_Owener
+    function addOwner(address newOwner) public onlyWallet {
+        require(!isOwner[newOwner], "Address is already an owner");
+        owners.push(newOwner);
+        isOwner[newOwner] = true;
+        emit OwnerAdded(newOwner);
+    }
+
+    function removeOwner(address ownerToRemove) public onlyWallet {
+        require(isOwner[ownerToRemove], "Address is not an owner");
+        require(owners.length > 1, "Cannot remove last owner");
+        
+        // Remove from owners array
+        for (uint i = 0; i < owners.length; i++) {
+            if (owners[i] == ownerToRemove) {
+                owners[i] = owners[owners.length - 1];
+                owners.pop();
+                break;
+            }
+        }
+    
+        isOwner[ownerToRemove] = false;
+    
+        // Adjust required approvals if needed
+        if (required > owners.length) {
+            required = owners.length;
+        }
+        
+        emit OwnerRemoved(ownerToRemove);
+    }
+
+        function changeRequirement(uint newRequired) public onlyWallet {
+            require(newRequired <= owners.length, "Required approvals exceed owner count");
+            required = newRequired;
+            emit RequirementChanged(newRequired);
+        }
+
+        modifier onlyWallet() {
+            require(msg.sender == address(this), "Only MultiSigWallet can call this");
+            _;
+        }
+        // END Feature Allow_To_Change_Owener
+
+
 }
