@@ -1,4 +1,4 @@
-// scripts/changeOwners.js
+// scripts/changeOwner/4.RemoveOwners.js
 const { ethers } = require("hardhat");
 const fs = require("fs");
 
@@ -6,21 +6,21 @@ async function main() {
     // --- Configuration ---
     // IMPORTANT: Replace these with the actual addresses you want to use
     const CURRENT_OWNER_PRIVATE_KEY = process.env.CURRENT_OWNER_PRIVATE_KEY; // Private key of current owner
-    const NEW_OWNER_ADDRESS = process.env.NEW_OWNER_ADDRESS; // Address of new owner to add
+    const OWNER_TO_REMOVE_ADDRESS = process.env.OWNER_TO_REMOVE_ADDRESS; // Address of owner to remove
 
     // Alternative: You can also hardcode addresses for testing (NOT recommended for production)
     // const CURRENT_OWNER_ADDRESS = "0x..."; // Current owner address
-    // const NEW_OWNER_ADDRESS = "0x..."; // New owner address
+    // const OWNER_TO_REMOVE_ADDRESS = "0x..."; // Owner to remove address
 
     if (!CURRENT_OWNER_PRIVATE_KEY) {
         console.error("Please set CURRENT_OWNER_PRIVATE_KEY environment variable");
-        console.log("Usage: CURRENT_OWNER_PRIVATE_KEY=0x... NEW_OWNER_ADDRESS=0x... npx hardhat run scripts/changeOwners.js --network <network>");
+        console.log("Usage: CURRENT_OWNER_PRIVATE_KEY=0x... OWNER_TO_REMOVE_ADDRESS=0x... npx hardhat run scripts/changeOwner/4.RemoveOwners.js --network <network>");
         return;
     }
 
-    if (!NEW_OWNER_ADDRESS) {
-        console.error("Please set NEW_OWNER_ADDRESS environment variable");
-        console.log("Usage: CURRENT_OWNER_PRIVATE_KEY=0x... NEW_OWNER_ADDRESS=0x... npx hardhat run scripts/changeOwners.js --network <network>");
+    if (!OWNER_TO_REMOVE_ADDRESS) {
+        console.error("Please set OWNER_TO_REMOVE_ADDRESS environment variable");
+        console.log("Usage: CURRENT_OWNER_PRIVATE_KEY=0x... OWNER_TO_REMOVE_ADDRESS=0x... npx hardhat run scripts/changeOwner/4.RemoveOwners.js --network <network>");
         return;
     }
 
@@ -45,9 +45,9 @@ async function main() {
     const provider = ethers.provider;
     const currentOwnerWallet = new ethers.Wallet(CURRENT_OWNER_PRIVATE_KEY, provider);
 
-    console.log("--- Owner Change Configuration ---");
+    console.log("--- Owner Removal Configuration ---");
     console.log("Current Owner Address:", currentOwnerWallet.address);
-    console.log("New Owner Address:", NEW_OWNER_ADDRESS);
+    console.log("Owner to Remove:", OWNER_TO_REMOVE_ADDRESS);
 
     const multiSigWalletAddress = deploymentInfo.multiSig;
 
@@ -85,32 +85,42 @@ async function main() {
     }
     console.log(`✅ Confirmed: ${currentOwnerWallet.address} is a valid owner`);
 
-    // Check if new owner is already an owner
-    const isNewOwnerAlready = await multiSigWallet.isOwner(NEW_OWNER_ADDRESS);
-    if (isNewOwnerAlready) {
-        console.log(`⚠️  Warning: ${NEW_OWNER_ADDRESS} is already an owner of the MultiSigWallet`);
-    } else {
-        console.log(`✅ Confirmed: ${NEW_OWNER_ADDRESS} is not currently an owner`);
+    // Check if owner to remove is actually an owner
+    const isOwnerToRemove = await multiSigWallet.isOwner(OWNER_TO_REMOVE_ADDRESS);
+    if (!isOwnerToRemove) {
+        throw new Error(`Address ${OWNER_TO_REMOVE_ADDRESS} is not an owner of the MultiSigWallet`);
+    }
+    console.log(`✅ Confirmed: ${OWNER_TO_REMOVE_ADDRESS} is a valid owner to remove`);
+
+    // Check if removing would leave at least one owner
+    if (owners.length <= 1) {
+        throw new Error("Cannot remove the last owner of the MultiSigWallet");
+    }
+    console.log(`✅ Confirmed: There will still be ${owners.length - 1} owner(s) after removal`);
+
+    // Check if required approvals would still be valid after removal
+    if (requiredApprovals > owners.length - 1) {
+        console.log(`⚠️  Warning: Required approvals (${requiredApprovals}) will exceed owner count (${owners.length - 1}) after removal`);
+        console.log("The contract will automatically adjust required approvals to match the new owner count");
     }
 
-    // Note: The current MultiSigWallet contract doesn't have addOwner function
-    // This script assumes you want to submit a generic transaction
-    // If you need to add owners, you'll need to modify the MultiSigWallet contract first
-
-    console.log("\n--- Submitting Transaction ---");
-    console.log("Note: This will submit a transaction to the target address with the specified data");
-    console.log("Target Address:", NEW_OWNER_ADDRESS);
+    console.log("\n--- Submitting Remove Owner Transaction ---");
+    console.log("Target Address:", multiSigWalletAddress);
+    console.log("Owner to Remove:", OWNER_TO_REMOVE_ADDRESS);
     console.log("Value: 0 ETH");
-    console.log("Data: 0x (empty - just sending to address)");
+
+    // Encode the removeOwner function call
+    const removeOwnerData = multiSigWallet.interface.encodeFunctionData("removeOwner", [OWNER_TO_REMOVE_ADDRESS]);
+    console.log("Encoded removeOwner data:", removeOwnerData);
 
     // Connect with the current owner's wallet
     const multiSigWalletConnected = multiSigWallet.connect(currentOwnerWallet);
 
-    // Submit the transaction (example: sending 0 ETH to new owner address)
+    // Submit the transaction to call removeOwner on the MultiSigWallet itself
     const submitTx = await multiSigWalletConnected.submit(
-        NEW_OWNER_ADDRESS, // Target address
-        0,                 // No ETH value
-        "0x"              // Empty data
+        multiSigWalletAddress, // Target is the MultiSigWallet itself
+        0,                     // No ETH value
+        removeOwnerData        // Encoded removeOwner function call
     );
 
     const submitReceipt = await submitTx.wait();
@@ -127,10 +137,10 @@ async function main() {
     console.log(`Transaction ID: ${txId}`);
 
     // Append txId to deployment file
-    deploymentInfo.changeOwnerTxId = txId.toString();
-    deploymentInfo.changeOwnerTarget = NEW_OWNER_ADDRESS;
-    deploymentInfo.changeOwnerSubmittedBy = currentOwnerWallet.address;
-    deploymentInfo.changeOwnerTimestamp = new Date().toISOString();
+    deploymentInfo.removeOwnerTxId = txId.toString();
+    deploymentInfo.removeOwnerTarget = OWNER_TO_REMOVE_ADDRESS;
+    deploymentInfo.removeOwnerSubmittedBy = currentOwnerWallet.address;
+    deploymentInfo.removeOwnerTimestamp = new Date().toISOString();
 
     fs.writeFileSync(deploymentFile, JSON.stringify(deploymentInfo, null, 2));
     console.log(`✅ Transaction ID ${txId} saved to ${deploymentFile}`);
@@ -147,7 +157,7 @@ async function main() {
     console.log("\n--- Example commands for other owners ---");
     console.log(`// To approve: await multiSigWallet.connect(otherOwner).approve(${txId})`);
     console.log(`// To execute: await multiSigWallet.connect(anyOwner).execute(${txId})`);
+    console.log(`// To run the approval script: npx hardhat run scripts/changeOwner/5.ApproveRemoveOwner.js --network <network>`);
 }
-
 
 main().catch(console.error);

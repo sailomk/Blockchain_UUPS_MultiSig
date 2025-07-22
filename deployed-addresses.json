@@ -3,9 +3,17 @@
   "multiSig": "0x5FbDB2315678afecb367f032d93F642f64180aa3",
   "proxy": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
   "implementation": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-  "timestamp": "2025-07-21T10:43:41.735Z",
-  "changeOwnerTxId": "2",
+  "timestamp": "2025-07-22T06:57:15.069Z",
+  "changeOwnerTxId": "0",
   "changeOwnerTarget": "0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199",
   "changeOwnerSubmittedBy": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "changeOwnerTimestamp": "2025-07-21T11:17:48.933Z"
+  "changeOwnerTimestamp": "2025-07-22T06:57:27.978Z",
+  "removeOwnerTxId": "1",
+  "removeOwnerTarget": "0x70997970C51812dc3A010C7d01b50e0d17dc79C8",
+  "removeOwnerSubmittedBy": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "removeOwnerTimestamp": "2025-07-22T07:26:27.032Z",
+  "changeRequirementTxId": "2",
+  "newRequiredApprovals": 2,
+  "changeRequirementSubmittedBy": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "changeRequirementTimestamp": "2025-07-22T07:28:35.370Z"
 }
