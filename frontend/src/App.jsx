@@ -1,8 +1,8 @@
 // frontend/src/App.jsx
 import { useState, useEffect } from 'react';
 import { BrowserProvider } from 'ethers';
-import DeployPanel from './components/DeployPanel';
 import UpgradePanel from './components/UpgradePanel';
+import UUPSDeployer from './components/UUPSDeployer';
 
 function App() {
   const [provider, setProvider] = useState(null);
@@ -25,18 +25,18 @@ function App() {
 
     try {
       // ขออนุญาตเชื่อมต่อ Wallet
-      const accounts = await window.ethereum.request({ 
-        method: 'eth_requestAccounts' 
+      const accounts = await window.ethereum.request({
+        method: 'eth_requestAccounts'
       });
-      
+
       const web3Provider = new BrowserProvider(window.ethereum);
       const signer = await web3Provider.getSigner();
-      
+
       setProvider(web3Provider);
       setSigner(signer);
       setAccount(accounts[0]);
       setError(null);
-      
+
       // เตรียม listener สำหรับเมื่อผู้ใช้เปลี่ยนบัญชี
       window.ethereum.on('accountsChanged', (newAccounts) => {
         setAccount(newAccounts[0] || null);
@@ -48,12 +48,12 @@ function App() {
           setSigner(null);
         }
       });
-      
+
       // เตรียม listener สำหรับเมื่อผู้ใช้เปลี่ยนเครือข่าย
       window.ethereum.on('chainChanged', () => {
         window.location.reload();
       });
-      
+
     } catch (err) {
       setError(`Failed to connect wallet: ${err.message}`);
       console.error(err);
@@ -67,7 +67,7 @@ function App() {
         try {
           const web3Provider = new BrowserProvider(window.ethereum);
           const signer = await web3Provider.getSigner();
-          
+
           setProvider(web3Provider);
           setSigner(signer);
           setAccount(window.ethereum.selectedAddress);
@@ -83,7 +83,7 @@ function App() {
   return (
     <div style={{ padding: '20px' }}>
       <h1>MultiSig UUPS Contract Manager</h1>
-      
+
       {error && (
         <div style={{ color: 'red', margin: '10px 0' }}>
           {error}
@@ -91,7 +91,7 @@ function App() {
       )}
 
       {!account ? (
-        <button 
+        <button
           onClick={connectWallet}
           style={{
             padding: '10px 15px',
@@ -109,10 +109,12 @@ function App() {
           <div style={{ margin: '10px 0' }}>
             Connected as: <strong>{account}</strong>
           </div>
-          
-          <DeployPanel signer={signer} />
+
+          <UUPSDeployer />
           <hr style={{ margin: '20px 0' }} />
           <UpgradePanel signer={signer} proxyAddress={proxyAddress} />
+          <hr style={{ margin: '20px 0' }} />
+
         </>
       )}
     </div>
