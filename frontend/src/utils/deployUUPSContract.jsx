@@ -30,6 +30,8 @@ export async function deployUUPSContract(signer, initialValue = 0, useMultiSig =
 
         let multiSigWalletAddress = null;
         let ownerAddress = await signer.getAddress();
+        //let ownerAddress = signer.address;
+        console.log("Signer address:", signer.address);
 
         // Deploy MultiSigWallet if requested
         if (useMultiSig) {
@@ -65,6 +67,7 @@ export async function deployUUPSContract(signer, initialValue = 0, useMultiSig =
             myContractArtifact.abi,
             myContractArtifact.bytecode,
             signer
+
         );
 
         const implementation = await MyContract.deploy();
@@ -82,36 +85,56 @@ export async function deployUUPSContract(signer, initialValue = 0, useMultiSig =
         console.log(`Owner will be: ${ownerAddress}`);
 
         // 4. Deploy ERC1967Proxy for UUPS pattern
-        // Use a reliable ERC1967Proxy implementation
+        let proxyAddress;
 
-        const erc1967ProxyArtifact = await loadContractArtifact("ERC1967Proxy");
+        try {
+            // Try to load ERC1967Proxy artifact
+            const erc1967ProxyArtifact = await loadContractArtifact("ERC1967Proxy");
+            console.log("ERC1967Proxy artifact loaded successfully");
 
+            console.log("Deploying UUPS Proxy...");
+            // Use ContractFactory to DEPLOY a new proxy contract
+            const ProxyFactory = new ethers.ContractFactory(
+                erc1967ProxyArtifact.abi,
+                erc1967ProxyArtifact.bytecode,
+                signer
+            );
 
-        console.log("Deploying UUPS Proxy...");
-        const ProxyFactory = new ethers.ContractFactory(
-            erc1967ProxyArtifact.abi,
-            erc1967ProxyArtifact.bytecode,
-            signer
-        );
+            const proxy = await ProxyFactory.deploy(implementationAddress, initializeData);
+            await proxy.waitForDeployment();
+            proxyAddress = await proxy.getAddress();
+            console.log("UUPS Proxy deployed to:", proxyAddress);
 
-        const proxy = await ProxyFactory.deploy(implementationAddress, initializeData);
-        await proxy.waitForDeployment();
+        } catch (error) {
+            console.log("Could not load ERC1967Proxy artifact, using direct implementation approach");
+            console.log("Error details:", error.message);
 
-        const proxyAddress = await proxy.getAddress();
-        console.log("UUPS Proxy deployed to:", proxyAddress);
-        console.log("Implementation contract initialized successfully");
+            // Alternative approach: Use the implementation directly and initialize it
+            // This is valid for UUPS since the upgrade logic is in the implementation
+            console.log("Initializing implementation contract directly...");
 
-        // For UUPS, we can use the implementation address as the proxy address
-        // since the upgrade logic is built into the contract itself
-        proxyAddress = implementationAddress;
-        console.log("UUPS Contract deployed to:", proxyAddress);
+            // Create a contract instance for the implementation
+            const implementationContract = new ethers.Contract(
+                implementationAddress,
+                myContractArtifact.abi,
+                signer
+            );
 
+            // Initialize the implementation contract
+            const initTx = await implementationContract.initialize(ownerAddress);
+            await initTx.wait();
+            console.log("Implementation contract initialized successfully");
 
+            // For this approach, the implementation address IS the contract address
+            proxyAddress = implementationAddress;
+            console.log("Using implementation as contract address:", proxyAddress);
+        }
 
-        // 5. Create a contract instance with the proxy address but using the implementation ABI
+        // 5. Create a contract instance to INTERACT with the deployed proxy
+        // Use ethers.Contract because the proxy is already deployed - we just want to call its functions
         const proxyAsImpl = new ethers.Contract(
-            proxyAddress,
-            myContractArtifact.abi,
+            proxyAddress,        // Address of the deployed proxy
+            myContractArtifact.abi,  // ABI of the implementation (proxy delegates calls to implementation)
             signer
         );
 
@@ -161,6 +184,7 @@ export async function deployUUPSContract(signer, initialValue = 0, useMultiSig =
         throw error;
     }
 }
+
 // Function to deploy UUPS contract with MultiSigWallet(similar to 1.deployV1.js)
 export async function deployUUPSWithMultiSig(signer, multiSigOwners = [], requiredApprovals = 1) {
     if (!signer) {

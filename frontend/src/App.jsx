@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { BrowserProvider } from 'ethers';
 import UpgradePanel from './components/UpgradePanel';
 import UUPSDeployer from './components/UUPSDeployer';
+import DeployMyContractV1 from './components/DeployMyContractV1';
 
 function App() {
   const [provider, setProvider] = useState(null);
@@ -110,7 +111,8 @@ function App() {
             Connected as: <strong>{account}</strong>
           </div>
 
-          <UUPSDeployer />
+
+          <DeployMyContractV1 signer={signer} />
           <hr style={{ margin: '20px 0' }} />
           <UpgradePanel signer={signer} proxyAddress={proxyAddress} />
           <hr style={{ margin: '20px 0' }} />

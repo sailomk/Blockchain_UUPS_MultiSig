@@ -29,6 +29,7 @@ export default function UUPSDeployer() {
                     const provider = new ethers.BrowserProvider(window.ethereum);
                     const signer = await provider.getSigner();
                     setSigner(signer);
+                    console.log("Connected to wallet:", signer);
                 } catch (error) {
                     console.error("Error connecting to wallet:", error);
                     setError("Failed to connect wallet. Please make sure MetaMask is installed and unlocked.");
